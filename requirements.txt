@@ -1,0 +1,23 @@
+torch
+torchvision
+torchaudio
+
+transformers==4.39.0
+datasets
+evaluate
+
+numpy
+pandas
+tqdm
+scikit-learn
+
+rouge-score
+bert-score
+
+nltk
+
+# Needed for sentence splitting & punkt models
+protobuf
+
+# Optional but used in training scripts
+ipywidgets
