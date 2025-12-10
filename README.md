@@ -27,7 +27,7 @@ This study includes:
 
 ## Repository Structure
 
-'''
+```
 
 transformer-extractive-summarization-study/
 │
@@ -64,7 +64,7 @@ transformer-extractive-summarization-study/
 ├── Roberta_Eval_GIGA.ipynb
 └── Roberta_Giga.py
 
-'''
+```
 
 ---
 
@@ -91,12 +91,14 @@ nltk.download("wordnet")
 ## Datasets
 
 This project uses HuggingFace Datasets:
+
 • CNN/DailyMail
 
 from datasets import load_dataset
 load_dataset("cnn_dailymail", "3.0.0")
 
-    •	Gigaword
+
+•	Gigaword
 
 load_dataset("gigaword")
 
@@ -222,3 +224,4 @@ Special thanks to:
 • NLTK for linguistic tools
 • ROUGE & BERTScore authors
 • CNN/DailyMail and Gigaword dataset creators
+
