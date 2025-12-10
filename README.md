@@ -146,11 +146,6 @@ jupyter notebook GPT-2giga.ipynb
 
 ---
 
-### 🔁 Updated **Evaluation** section
-
-Replace your current **`## Evaluation`** section with this:
-
-````markdown
 ## Evaluation
 
 Evaluation is done either via dedicated notebooks or inside the training notebooks, depending on the model.
@@ -224,4 +219,5 @@ Special thanks to:
 • NLTK for linguistic tools
 • ROUGE & BERTScore authors
 • CNN/DailyMail and Gigaword dataset creators
+
 
