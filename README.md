@@ -126,6 +126,7 @@ python FLAN_T5_CNN.py
 ```
 
 For GPT-2 on CNN/DailyMail, training and evaluation are combined in a single notebook:
+
 • GPT-2_CNN.ipynb – runs preprocessing, training, final test evaluation, and saves 100 qualitative examples.
 
 You can open it with:
@@ -168,7 +169,7 @@ jupyter notebook Roberta_Eval_GIGA.ipynb
 jupyter notebook FLAN_T5_SMALL_CNN_EVAL.ipynb
 jupyter notebook FLAN_T5_SMALL_GIGA_Eval.ipynb
 ```
-````
+
 
 For GPT-2, there are no separate evaluation notebooks:
 • GPT-2_CNN.ipynb (CNN/DailyMail) and
@@ -219,5 +220,6 @@ Special thanks to:
 • NLTK for linguistic tools
 • ROUGE & BERTScore authors
 • CNN/DailyMail and Gigaword dataset creators
+
 
 
