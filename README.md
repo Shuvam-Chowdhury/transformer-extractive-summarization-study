@@ -1,4 +1,4 @@
-<img width="1803" height="824" alt="image" src="https://github.com/user-attachments/assets/dd27e97e-87f7-4af4-9670-920c336c9a6f" /># Transformer-Based Extractive Summarization Study
+# Transformer-Based Extractive Summarization Study
 
 A Comprehensive Evaluation of BERT, RoBERTa, BART, FLAN-T5, and GPT-2 on CNN/DailyMail and Gigaword
 
@@ -226,6 +226,7 @@ Special thanks to:
 • NLTK for linguistic tools
 • ROUGE & BERTScore authors
 • CNN/DailyMail and Gigaword dataset creators
+
 
 
 
