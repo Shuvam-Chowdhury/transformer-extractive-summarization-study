@@ -195,11 +195,11 @@ Gigaword:
 
 | Model   | ROUGE-1 F1 | ROUGE-2 F1 | ROUGE-L F1 | METEOR | BERTScore F1 |
 | ------- | ---------- | ---------- | ---------- | ------ | ------------ |
-| BERT    | 0.44       | 0.21       | 0.42       | 0.28   | 0.87         |
-| RoBERTa | 0.45       | 0.22       | 0.43       | 0.29   | 0.88         |
-| BART    | 0.46       | 0.22       | 0.44       | 0.29   | 0.88         |
-| FLAN-T5 | 0.42       | 0.20       | 0.40       | 0.27   | 0.86         |
-| GPT-2   | 0.40       | 0.18       | 0.38       | 0.26   | 0.85         |
+| BERT    | 0.2995     | 0.1020     | 0.2605     | 0.4159 | 0.8701       |
+| RoBERTa | 0.2995     | 0.1020     | 0.2605     | 0.4159 | 0.8701       |
+| BART    | 0.2995     | 0.1020     | 0.2605     | 0.4159 | 0.8701       |
+| FLAN-T5 | 0.2995     | 0.1020     | 0.2605     | 0.4160 | 0.8701       |
+| GPT-2   | 0.2904     | 0.1029     | 0.2520     | 0.3926 | 0.8664       |
 
 ## Full Research Report
 
@@ -226,6 +226,7 @@ Special thanks to:
 • NLTK for linguistic tools
 • ROUGE & BERTScore authors
 • CNN/DailyMail and Gigaword dataset creators
+
 
 
 
