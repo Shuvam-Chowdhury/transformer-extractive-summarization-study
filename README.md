@@ -1,4 +1,4 @@
-# Transformer-Based Extractive Summarization Study
+<img width="1803" height="824" alt="image" src="https://github.com/user-attachments/assets/dd27e97e-87f7-4af4-9670-920c336c9a6f" /># Transformer-Based Extractive Summarization Study
 
 A Comprehensive Evaluation of BERT, RoBERTa, BART, FLAN-T5, and GPT-2 on CNN/DailyMail and Gigaword
 
@@ -184,11 +184,11 @@ CNN/DailyMail:
 
 | Model   | ROUGE-1 F1 | ROUGE-2 F1 | ROUGE-L F1 | METEOR | BERTScore F1 |
 | ------- | ---------- | ---------- | ---------- | ------ | ------------ |
-| BERT    | 0.3645       | 0.21       | 0.42       | 0.28   | 0.87         |
-| RoBERTa | 0.3653       | 0.22       | 0.43       | 0.29   | 0.88         |
-| BART    | 0.3653       | 0.22       | 0.44       | 0.29   | 0.88         |
-| FLAN-T5 | 0.3059       | 0.20       | 0.40       | 0.27   | 0.86         |
-| GPT-2   | 0.3249       | 0.18       | 0.38       | 0.26   | 0.85         |
+| BERT    | 0.3645       | 0.1497       | 0.2290       | 0.3047   | 0.8643       |
+| RoBERTa | 0.3653       | 0.1487       | 0.2298       | 0.3022   | 0.8651       |
+| BART    | 0.3653       | 0.1502       | 0.2287       | 0.3085   | 0.8645       |
+| FLAN-T5 | 0.3059       | 0.1032       | 0.1876       | 0.2389   | 0.8518       |
+| GPT-2   | 0.3249       | 0.1158       | 0.1969       | 0.2476   | 0.8562       |
 
 Gigaword:
 
@@ -226,6 +226,7 @@ Special thanks to:
 • NLTK for linguistic tools
 • ROUGE & BERTScore authors
 • CNN/DailyMail and Gigaword dataset creators
+
 
 
 
