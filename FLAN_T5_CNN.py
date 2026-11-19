@@ -36,6 +36,12 @@ MODEL_NAME = "google/flan-t5-small"         # Hugging Face model to download
 OUTPUT_DIR = "/kaggle/working/flan_t5_cnn"  # Kaggle keeps this folder when you save a version
 os.makedirs(OUTPUT_DIR, exist_ok=True)        # create the folder if it doesn't exist yet
 
+SEED = 42                         # same seed in every script so runs can be repeated
+random.seed(SEED)                 # Python's shuffle (which 100k sentences are picked)
+np.random.seed(SEED)              # NumPy randomness
+torch.manual_seed(SEED)           # classifier-layer starting weights and DataLoader shuffling
+torch.cuda.manual_seed_all(SEED)  # the same on every GPU
+
 cache_dir = None                                                     # None = Hugging Face's default download folder
 save_path_100k = os.path.join(OUTPUT_DIR, "flan_t5_cnn_preprocessed.pt") # all labelled sentences
 pretrained_model_path = MODEL_NAME                                   # model name passed to from_pretrained

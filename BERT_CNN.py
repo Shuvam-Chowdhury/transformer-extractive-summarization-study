@@ -38,6 +38,12 @@ MODEL_NAME = "bert-base-uncased"             # Hugging Face model to download
 OUTPUT_DIR = "/kaggle/working/bert_cnn"       # Kaggle keeps this folder when you save a version
 os.makedirs(OUTPUT_DIR, exist_ok=True)        # create the folder if it doesn't exist yet
 
+SEED = 42                         # same seed in every script so runs can be repeated
+random.seed(SEED)                 # Python's shuffle (which 100k sentences are picked)
+np.random.seed(SEED)              # NumPy randomness
+torch.manual_seed(SEED)           # classifier-layer starting weights and DataLoader shuffling
+torch.cuda.manual_seed_all(SEED)  # the same on every GPU
+
 cache_dir = None                                                     # None = Hugging Face's default download folder
 samples_path = os.path.join(OUTPUT_DIR, "bert_cnn_preprocessed.pt")  # all labelled sentences
 save_dir = OUTPUT_DIR                                                # checkpoints are saved here
@@ -280,5 +286,5 @@ if any(k.startswith("module.") for k in state_dict.keys()):
 model.load_state_dict(state_dict)
 
 # Run evaluation
-evaluate_model(model, load_dataset("cnn_dailymail", "3.0.0")['test'], tokenizer, device)
+evaluate_model(model, test_dataset, tokenizer, device)  # test[:10000], same as every model
 print("? All done!")

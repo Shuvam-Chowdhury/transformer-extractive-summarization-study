@@ -38,6 +38,12 @@ MODEL_NAME = "roberta-base"                 # Hugging Face model to download
 OUTPUT_DIR = "/kaggle/working/roberta_cnn"  # Kaggle keeps this folder when you save a version
 os.makedirs(OUTPUT_DIR, exist_ok=True)        # create the folder if it doesn't exist yet
 
+SEED = 42                         # same seed in every script so runs can be repeated
+random.seed(SEED)                 # Python's shuffle (which 100k sentences are picked)
+np.random.seed(SEED)              # NumPy randomness
+torch.manual_seed(SEED)           # classifier-layer starting weights and DataLoader shuffling
+torch.cuda.manual_seed_all(SEED)  # the same on every GPU
+
 cache_dir = None                                                     # None = Hugging Face's default download folder
 save_path_100k = os.path.join(OUTPUT_DIR, "roberta_cnn_preprocessed.pt") # all labelled sentences
 pretrained_model_path = MODEL_NAME                                   # model name passed to from_pretrained
@@ -141,8 +147,7 @@ samples = torch.load(save_path_100k, map_location="cpu")
 random.shuffle(samples)
 samples = samples[:100000]
 
-train_samples = samples[:98000]
-val_samples = samples[98000:]
+train_samples = samples  # all 100k sentences (same for every model)
 
 train_loader = DataLoader(SummarizationDataset(train_samples), batch_size=64, shuffle=True)
 
@@ -291,6 +296,6 @@ if any(k.startswith("module.") for k in state_dict.keys()):
 model.load_state_dict(state_dict)
 
 # Evaluate
-evaluate_model(model, load_dataset("cnn_dailymail", "3.0.0", split="test"), tokenizer, device)
+evaluate_model(model, test_dataset, tokenizer, device)  # test[:10000], same as every model
 
 print("\n All done training and evaluating on cnn_dailymail!")

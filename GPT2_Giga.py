@@ -39,6 +39,12 @@ MODEL_NAME = "gpt2"                         # Hugging Face model to download
 OUTPUT_DIR = "/kaggle/working/gpt2_giga"    # Kaggle keeps this folder when you save a version
 os.makedirs(OUTPUT_DIR, exist_ok=True)        # create the folder if it doesn't exist yet
 
+SEED = 42                         # same seed in every script so runs can be repeated
+random.seed(SEED)                 # Python's shuffle (which 100k sentences are picked)
+np.random.seed(SEED)              # NumPy randomness
+torch.manual_seed(SEED)           # classifier-layer starting weights and DataLoader shuffling
+torch.cuda.manual_seed_all(SEED)  # the same on every GPU
+
 cache_dir = None                                                     # None = Hugging Face's default download folder
 sample_ckpt_path = os.path.join(OUTPUT_DIR, "gpt2_giga_preprocess_progress.pt") # partial progress while preprocessing
 save_path_100k = os.path.join(OUTPUT_DIR, "gpt2_giga_preprocessed.pt") # all labelled sentences
@@ -122,7 +128,9 @@ else:
 
     torch.save(samples, save_path_100k)
 
-# Training setup
+# Training setup: shuffle and keep 100k sentences (same for every model)
+random.shuffle(samples)
+samples = samples[:100000]
 train_dataset = ExtractiveDataset(samples)
 train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
 

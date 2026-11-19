@@ -36,6 +36,12 @@ MODEL_NAME = "google/flan-t5-small"         # Hugging Face model to download
 OUTPUT_DIR = "/kaggle/working/flan_t5_giga" # Kaggle keeps this folder when you save a version
 os.makedirs(OUTPUT_DIR, exist_ok=True)        # create the folder if it doesn't exist yet
 
+SEED = 42                         # same seed in every script so runs can be repeated
+random.seed(SEED)                 # Python's shuffle (which 100k sentences are picked)
+np.random.seed(SEED)              # NumPy randomness
+torch.manual_seed(SEED)           # classifier-layer starting weights and DataLoader shuffling
+torch.cuda.manual_seed_all(SEED)  # the same on every GPU
+
 cache_dir = None                                                     # None = Hugging Face's default download folder
 save_path_100k = os.path.join(OUTPUT_DIR, "flan_t5_giga_preprocessed.pt") # all labelled sentences
 pretrained_model_path = MODEL_NAME                                   # model name passed to from_pretrained
@@ -125,7 +131,7 @@ else:
 samples = torch.load(save_path_100k, map_location="cpu")
 random.shuffle(samples)
 
-train_samples = samples  # Use all 100k preprocessed training samples
+train_samples = samples[:100000]  # keep exactly 100k sentences (same for every model)
 train_loader = DataLoader(SummarizationDataset(train_samples), batch_size=64, shuffle=True)
 
 # Load validation split and create non-overlapping val/test sets
