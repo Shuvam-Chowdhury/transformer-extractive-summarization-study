@@ -146,7 +146,8 @@ checkpoint_path = os.path.join(save_dir, "gpt2_extractive_checkpoint.pt")
 
 start_epoch = 0
 best_rougel = 0.0
-num_epochs = 3
+best_loss = float("inf")                    # training loss of the best epoch (breaks ties in ROUGE-L)
+patience, no_improve, num_epochs = 3, 0, 3   # same early-stopping settings as the other scripts
 
 if os.path.exists(checkpoint_path):
     print(" Resuming from checkpoint...")
@@ -154,6 +155,8 @@ if os.path.exists(checkpoint_path):
     model.load_state_dict(checkpoint['model_state_dict'])
     optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
     best_rougel = checkpoint['best_rougel']
+    best_loss = checkpoint.get('best_loss', float("inf"))   # .get() so older checkpoints still load
+    no_improve = checkpoint.get('no_improve', 0)
     start_epoch = checkpoint['epoch'] + 1
 
 # Evaluation Function
@@ -205,16 +208,27 @@ for epoch in range(start_epoch, num_epochs):
     val_rougel = evaluate_rougel(model, val_data, tokenizer, device)
     print(f" Validation ROUGE-L: {val_rougel:.4f}")
 
-    if val_rougel > best_rougel:
-        best_rougel = val_rougel
+    # Same rule as the other scripts: higher validation ROUGE-L wins, lower training loss breaks a tie
+    is_better = val_rougel > best_rougel or (val_rougel == best_rougel and avg_loss < best_loss)
+    if is_better:
+        best_rougel, best_loss = val_rougel, avg_loss
         torch.save(model.state_dict(), save_path)
         print(f" New best model saved (ROUGE-L {val_rougel:.4f})")
+        no_improve = 0
+    else:
+        no_improve += 1
+        print(f" No improvement | Patience: {no_improve}/{patience}")
+        if no_improve >= patience:
+            print(" Early stopping.")
+            break
 
     torch.save({
         'epoch': epoch,
         'model_state_dict': model.state_dict(),
         'optimizer_state_dict': optimizer.state_dict(),
-        'best_rougel': best_rougel
+        'best_rougel': best_rougel,
+        'best_loss': best_loss,
+        'no_improve': no_improve
     }, checkpoint_path)
     print(f" Checkpoint saved at epoch {epoch+1}")
 

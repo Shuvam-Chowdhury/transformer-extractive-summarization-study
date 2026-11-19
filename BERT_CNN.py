@@ -186,7 +186,7 @@ def compute_rougeL_on_validation(model, val_dataset, tokenizer, device, max_samp
 
 # Training Loop with Checkpoint Saving
 best_rougeL, best_loss = 0, float("inf")
-patience, no_improve, num_epochs = 2, 0, 3
+patience, no_improve, num_epochs = 3, 0, 3
 
 print("\n?? Training started")
 for epoch in range(num_epochs):

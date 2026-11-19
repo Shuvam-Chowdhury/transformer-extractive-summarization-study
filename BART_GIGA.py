@@ -73,8 +73,8 @@ class BartForExtractiveSummarization(nn.Module):
         self.classifier = nn.Linear(self.bart.config.hidden_size, 1)
 
     def forward(self, input_ids, attention_mask):
-        outputs = self.bart(input_ids=input_ids, attention_mask=attention_mask)
-        cls_output = outputs.last_hidden_state[:, 0, :]  # Take [CLS]-like token
+        outputs = self.bart.encoder(input_ids=input_ids, attention_mask=attention_mask)  # encoder only, as in the report
+        cls_output = outputs.last_hidden_state[:, 0, :]  # encoder's first token (<s>)
         logits = self.classifier(cls_output).squeeze(-1)
         return logits
 
