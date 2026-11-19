@@ -17,8 +17,10 @@ from torch.utils.data import DataLoader
 from torch.optim import AdamW
 
 import nltk
-nltk.data.path.append('')
-from nltk.tokenize.punkt import PunktSentenceTokenizer
+nltk.download("punkt_tab", quiet=True)   # pretrained sentence splitter (the same one the eval notebooks used)
+nltk.download("wordnet", quiet=True)     # word list METEOR uses to match synonyms
+nltk.download("omw-1.4", quiet=True)     # extra WordNet data METEOR can need
+from nltk.tokenize import sent_tokenize
 from nltk.translate.meteor_score import single_meteor_score
 
 from transformers import T5Tokenizer, T5EncoderModel
@@ -45,20 +47,19 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")
 
 # Load Tokenizer and Sentence Splitter
-tokenizer = T5Tokenizer.from_pretrained(MODEL_NAME, cache_dir=cache_dir, local_files_only=True)
-punkt_tokenizer = PunktSentenceTokenizer()
+tokenizer = T5Tokenizer.from_pretrained(MODEL_NAME, cache_dir=cache_dir)
 
 def tokenize_sentences(sentences):
     return tokenizer(sentences, padding="max_length", truncation=True, max_length=128, return_tensors="pt")
 
 def split_into_sentences(text):
-    return punkt_tokenizer.tokenize(text)
+    return sent_tokenize(text)
 
 # Model Definition
 class T5ForExtractiveSummarization(nn.Module):
     def __init__(self, pretrained_model_path):
         super().__init__()
-        self.encoder = T5EncoderModel.from_pretrained(pretrained_model_path, local_files_only=True)
+        self.encoder = T5EncoderModel.from_pretrained(pretrained_model_path)
         self.classifier = nn.Linear(self.encoder.config.d_model, 1)
 
     def forward(self, input_ids, attention_mask):

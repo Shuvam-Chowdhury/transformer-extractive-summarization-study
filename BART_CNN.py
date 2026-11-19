@@ -19,10 +19,11 @@ from torch.utils.data import DataLoader
 from torch.optim import AdamW
 
 import nltk
-nltk.data.path.append('')
-from nltk.tokenize.punkt import PunktSentenceTokenizer
+nltk.download("punkt_tab", quiet=True)   # pretrained sentence splitter (the same one the eval notebooks used)
+nltk.download("wordnet", quiet=True)     # word list METEOR uses to match synonyms
+nltk.download("omw-1.4", quiet=True)     # extra WordNet data METEOR can need
+from nltk.tokenize import sent_tokenize
 from nltk.translate.meteor_score import single_meteor_score
-from nltk.corpus import wordnet
 
 from transformers import BartTokenizer, BartModel
 from datasets import load_dataset
@@ -48,22 +49,21 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")
 
 # Load Tokenizer and Sentence Splitter
-tokenizer = BartTokenizer.from_pretrained(MODEL_NAME, cache_dir=cache_dir, local_files_only=True)
+tokenizer = BartTokenizer.from_pretrained(MODEL_NAME, cache_dir=cache_dir)
 
 
-punkt_tokenizer = PunktSentenceTokenizer()
 
 def tokenize_sentences(sentences):
     return tokenizer(sentences, padding="max_length", truncation=True, max_length=128, return_tensors="pt")
 
 def split_into_sentences(text):
-    return punkt_tokenizer.tokenize(text)
+    return sent_tokenize(text)
 
 # Model Definition
 class BartForExtractiveSummarization(nn.Module):
     def __init__(self, pretrained_model_path):
         super().__init__()
-        self.bart = BartModel.from_pretrained(pretrained_model_path, local_files_only=True)
+        self.bart = BartModel.from_pretrained(pretrained_model_path)
         self.classifier = nn.Linear(self.bart.config.hidden_size, 1)
 
     def forward(self, input_ids, attention_mask):

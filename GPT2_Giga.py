@@ -26,13 +26,11 @@ from bert_score import score as bert_score
 from tqdm import tqdm
 
 import nltk
-nltk.data.path.append('')
-from nltk.tokenize.punkt import PunktSentenceTokenizer
+nltk.download("punkt_tab", quiet=True)   # pretrained sentence splitter (the same one the eval notebooks used)
+nltk.download("wordnet", quiet=True)     # word list METEOR uses to match synonyms
+nltk.download("omw-1.4", quiet=True)     # extra WordNet data METEOR can need
+from nltk.tokenize import sent_tokenize
 from nltk.translate.meteor_score import single_meteor_score
-from nltk.corpus import wordnet
-
-nltk.data.path.append('')
-from nltk.tokenize.punkt import PunktSentenceTokenizer
 
 print = functools.partial(print, flush=True)
 
@@ -48,11 +46,9 @@ save_dir = OUTPUT_DIR                                                # checkpoin
 
 
 # Load sentence tokenizer
-with open("", "rb") as f:
-    punkt_tokenizer = pickle.load(f)
 
 def split_into_sentences(text):
-    return punkt_tokenizer.tokenize(text)
+    return sent_tokenize(text)
 
 def label_sentences(sentences, reference, top_k=3):
     scorer = rouge_scorer.RougeScorer(['rougeL'], use_stemmer=True)
@@ -61,7 +57,7 @@ def label_sentences(sentences, reference, top_k=3):
     return [1 if i in top_idxs else 0 for i in range(len(sentences))]
 
 # Tokenizer and device setup
-tokenizer = GPT2Tokenizer.from_pretrained(MODEL_NAME, cache_dir=cache_dir, local_files_only=True)
+tokenizer = GPT2Tokenizer.from_pretrained(MODEL_NAME, cache_dir=cache_dir)
 tokenizer.pad_token = tokenizer.eos_token
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -69,7 +65,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 class GPT2ExtractiveSummarizer(nn.Module):
     def __init__(self):
         super().__init__()
-        self.encoder = GPT2Model.from_pretrained(MODEL_NAME, cache_dir=cache_dir, local_files_only=True)
+        self.encoder = GPT2Model.from_pretrained(MODEL_NAME, cache_dir=cache_dir)
         self.classifier = nn.Linear(self.encoder.config.hidden_size, 1)
 
     def forward(self, input_ids, attention_mask):

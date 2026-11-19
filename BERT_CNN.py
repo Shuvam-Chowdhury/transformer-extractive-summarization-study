@@ -19,10 +19,11 @@ from torch.utils.data import DataLoader
 from torch.optim import AdamW
 
 import nltk
-nltk.data.path.append('')
-from nltk.tokenize.punkt import PunktSentenceTokenizer
+nltk.download("punkt_tab", quiet=True)   # pretrained sentence splitter (the same one the eval notebooks used)
+nltk.download("wordnet", quiet=True)     # word list METEOR uses to match synonyms
+nltk.download("omw-1.4", quiet=True)     # extra WordNet data METEOR can need
+from nltk.tokenize import sent_tokenize
 from nltk.translate.meteor_score import single_meteor_score
-from nltk.corpus import wordnet
 
 from transformers import BertTokenizer, BertModel
 from datasets import load_dataset
@@ -42,8 +43,6 @@ samples_path = os.path.join(OUTPUT_DIR, "bert_cnn_preprocessed.pt")  # all label
 sampled_path = os.path.join(OUTPUT_DIR, "bert_cnn_100k.pt")          # the 100k-sentence training sample
 save_dir = OUTPUT_DIR                                                # checkpoints are saved here
 
-with open("", "rb") as f:
-    punkt_tokenizer = pickle.load(f)
 
 # Device Setup
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -51,7 +50,7 @@ print(f"Using device: {device}")
 
 # Tokenizer
 try:
-    tokenizer = BertTokenizer.from_pretrained(MODEL_NAME, cache_dir=cache_dir, local_files_only=True)
+    tokenizer = BertTokenizer.from_pretrained(MODEL_NAME, cache_dir=cache_dir)
     print("? Tokenizer loaded")
 except Exception as e:
     print(f"? Tokenizer load failed: {e}")
@@ -62,13 +61,13 @@ def tokenize_sentences(sentences):
 
 # Sentence Splitter
 def split_into_sentences(text):
-    return punkt_tokenizer.tokenize(text)
+    return sent_tokenize(text)
 
 # Model Definition
 class BertForExtractiveSummarization(nn.Module):
     def __init__(self, pretrained_model=MODEL_NAME):
         super().__init__()
-        self.bert = BertModel.from_pretrained(pretrained_model, cache_dir=cache_dir, local_files_only=True)
+        self.bert = BertModel.from_pretrained(pretrained_model, cache_dir=cache_dir)
         self.classifier = nn.Linear(self.bert.config.hidden_size, 1)
 
     def forward(self, input_ids, attention_mask):
