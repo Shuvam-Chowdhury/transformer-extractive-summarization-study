@@ -2,7 +2,6 @@
 # coding: utf-8
 
 import sys
-sys.path.insert(0, "")
 
 import os
 os.environ['PYTHONUNBUFFERED'] = "1"
@@ -30,14 +29,23 @@ from tqdm import tqdm
 
 print = functools.partial(print, flush=True)
 
+# === Settings: paths (change OUTPUT_DIR to run somewhere other than Kaggle) ===
+MODEL_NAME = "google/flan-t5-small"         # Hugging Face model to download
+OUTPUT_DIR = "/kaggle/working/flan_t5_cnn"  # Kaggle keeps this folder when you save a version
+os.makedirs(OUTPUT_DIR, exist_ok=True)        # create the folder if it doesn't exist yet
+
+cache_dir = None                                                     # None = Hugging Face's default download folder
+save_path_100k = os.path.join(OUTPUT_DIR, "flan_t5_cnn_preprocessed.pt") # all labelled sentences
+pretrained_model_path = MODEL_NAME                                   # model name passed to from_pretrained
+save_dir = OUTPUT_DIR                                                # checkpoints are saved here
+
+
 # Device Setup
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")
 
 # Load Tokenizer and Sentence Splitter
-cache_dir = ""
-pretrained_model_path = ""
-tokenizer = T5Tokenizer.from_pretrained("google/flan-t5-small", cache_dir=cache_dir, local_files_only=True)
+tokenizer = T5Tokenizer.from_pretrained(MODEL_NAME, cache_dir=cache_dir, local_files_only=True)
 punkt_tokenizer = PunktSentenceTokenizer()
 
 def tokenize_sentences(sentences):
@@ -75,7 +83,6 @@ class SummarizationDataset(torch.utils.data.Dataset):
         }
 
 # Preprocessing
-save_path_100k = ""
 
 if os.path.exists(save_path_100k):
     print(f"Found preprocessed samples at {save_path_100k}")
@@ -130,8 +137,6 @@ if torch.cuda.device_count() > 1:
 optimizer = AdamW(model.parameters(), lr=2e-5)
 loss_fn = nn.BCEWithLogitsLoss()
 
-save_dir = ""
-os.makedirs(save_dir, exist_ok=True)
 save_path = os.path.join(save_dir, "best_flan_t5_gigaword_model.pt")
 checkpoint_path = os.path.join(save_dir, "best_flan_t5_gigaword_checkpoint.pt")
 

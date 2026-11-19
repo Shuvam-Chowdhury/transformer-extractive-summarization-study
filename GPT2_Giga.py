@@ -36,6 +36,17 @@ from nltk.tokenize.punkt import PunktSentenceTokenizer
 
 print = functools.partial(print, flush=True)
 
+# === Settings: paths (change OUTPUT_DIR to run somewhere other than Kaggle) ===
+MODEL_NAME = "gpt2"                         # Hugging Face model to download
+OUTPUT_DIR = "/kaggle/working/gpt2_giga"    # Kaggle keeps this folder when you save a version
+os.makedirs(OUTPUT_DIR, exist_ok=True)        # create the folder if it doesn't exist yet
+
+cache_dir = None                                                     # None = Hugging Face's default download folder
+sample_ckpt_path = os.path.join(OUTPUT_DIR, "gpt2_giga_preprocess_progress.pt") # partial progress while preprocessing
+save_path_100k = os.path.join(OUTPUT_DIR, "gpt2_giga_preprocessed.pt") # all labelled sentences
+save_dir = OUTPUT_DIR                                                # checkpoints are saved here
+
+
 # Load sentence tokenizer
 with open("", "rb") as f:
     punkt_tokenizer = pickle.load(f)
@@ -50,8 +61,7 @@ def label_sentences(sentences, reference, top_k=3):
     return [1 if i in top_idxs else 0 for i in range(len(sentences))]
 
 # Tokenizer and device setup
-cache_dir = ""
-tokenizer = GPT2Tokenizer.from_pretrained("gpt2", cache_dir=cache_dir, local_files_only=True)
+tokenizer = GPT2Tokenizer.from_pretrained(MODEL_NAME, cache_dir=cache_dir, local_files_only=True)
 tokenizer.pad_token = tokenizer.eos_token
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -59,7 +69,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 class GPT2ExtractiveSummarizer(nn.Module):
     def __init__(self):
         super().__init__()
-        self.encoder = GPT2Model.from_pretrained("gpt2", cache_dir=cache_dir, local_files_only=True)
+        self.encoder = GPT2Model.from_pretrained(MODEL_NAME, cache_dir=cache_dir, local_files_only=True)
         self.classifier = nn.Linear(self.encoder.config.hidden_size, 1)
 
     def forward(self, input_ids, attention_mask):
@@ -91,7 +101,6 @@ test_data = full_val_split.select(range(2000, 12000))
 
 # Preprocessing
 samples = []
-sample_ckpt_path = ""
 print(" Preprocessing 100k training samples with checkpointing...")
 for i in range(min(100000, len(train_articles))):
     article = train_articles[i]['document']
@@ -111,7 +120,7 @@ for i in range(min(100000, len(train_articles))):
         print(f" Processed {i+1} articles — saving progress")
         torch.save(samples, sample_ckpt_path)
 
-torch.save(samples, "")
+torch.save(samples, save_path_100k)
 
 # Training setup
 train_dataset = ExtractiveDataset(samples)
@@ -121,8 +130,6 @@ model = GPT2ExtractiveSummarizer().to(device)
 optimizer = AdamW(model.parameters(), lr=2e-5)
 loss_fn = nn.BCEWithLogitsLoss()
 
-save_dir = ""
-os.makedirs(save_dir, exist_ok=True)
 save_path = os.path.join(save_dir, "best_gpt2_extractive_gigaword.pt")
 checkpoint_path = os.path.join(save_dir, "gpt2_extractive_checkpoint_gigaword.pt")
 

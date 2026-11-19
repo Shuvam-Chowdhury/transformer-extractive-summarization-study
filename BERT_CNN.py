@@ -2,7 +2,6 @@
 # coding: utf-8
 
 import sys
-sys.path.insert(0, "")
 
 import os
 os.environ['PYTHONUNBUFFERED'] = "1"
@@ -33,6 +32,16 @@ from tqdm import tqdm
 
 print = functools.partial(print, flush=True)
 
+# === Settings: paths (change OUTPUT_DIR to run somewhere other than Kaggle) ===
+MODEL_NAME = "bert-base-uncased"             # Hugging Face model to download
+OUTPUT_DIR = "/kaggle/working/bert_cnn"       # Kaggle keeps this folder when you save a version
+os.makedirs(OUTPUT_DIR, exist_ok=True)        # create the folder if it doesn't exist yet
+
+cache_dir = None                                                     # None = Hugging Face's default download folder
+samples_path = os.path.join(OUTPUT_DIR, "bert_cnn_preprocessed.pt")  # all labelled sentences
+sampled_path = os.path.join(OUTPUT_DIR, "bert_cnn_100k.pt")          # the 100k-sentence training sample
+save_dir = OUTPUT_DIR                                                # checkpoints are saved here
+
 with open("", "rb") as f:
     punkt_tokenizer = pickle.load(f)
 
@@ -41,9 +50,8 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")
 
 # Tokenizer
-cache_dir = ""
 try:
-    tokenizer = BertTokenizer.from_pretrained("bert-base-uncased", cache_dir=cache_dir, local_files_only=True)
+    tokenizer = BertTokenizer.from_pretrained(MODEL_NAME, cache_dir=cache_dir, local_files_only=True)
     print("? Tokenizer loaded")
 except Exception as e:
     print(f"? Tokenizer load failed: {e}")
@@ -58,7 +66,7 @@ def split_into_sentences(text):
 
 # Model Definition
 class BertForExtractiveSummarization(nn.Module):
-    def __init__(self, pretrained_model="bert-base-uncased"):
+    def __init__(self, pretrained_model=MODEL_NAME):
         super().__init__()
         self.bert = BertModel.from_pretrained(pretrained_model, cache_dir=cache_dir, local_files_only=True)
         self.classifier = nn.Linear(self.bert.config.hidden_size, 1)
@@ -88,8 +96,6 @@ class SummarizationDataset(torch.utils.data.Dataset):
         
 # === Load and Prepare Data ===
 # Load and shuffle a subset of preprocessed samples
-samples_path = ""
-sampled_path = ""
 all_samples = torch.load(sampled_path, map_location="cpu")
 train_samples, val_samples = all_samples[:98000], all_samples[98000:]
 
@@ -131,8 +137,6 @@ if torch.cuda.device_count() > 1:
 optimizer = AdamW(model.parameters(), lr=2e-5)
 loss_fn = nn.BCEWithLogitsLoss()
 
-save_dir = ""
-os.makedirs(save_dir, exist_ok=True)
 save_path = os.path.join(save_dir, "best_bert_model.pt")
 checkpoint_path = os.path.join(save_dir, "training_checkpoint.pt")
 metrics_path = os.path.join(save_dir, "bert_eval_metrics.txt")

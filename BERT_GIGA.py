@@ -2,7 +2,6 @@
 # coding: utf-8
 
 import sys
-sys.path.insert(0, "")
 
 import os
 os.environ['PYTHONUNBUFFERED'] = "1"
@@ -33,6 +32,16 @@ from tqdm import tqdm
 
 print = functools.partial(print, flush=True)
 
+# === Settings: paths (change OUTPUT_DIR to run somewhere other than Kaggle) ===
+MODEL_NAME = "bert-base-uncased"            # Hugging Face model to download
+OUTPUT_DIR = "/kaggle/working/bert_giga"    # Kaggle keeps this folder when you save a version
+os.makedirs(OUTPUT_DIR, exist_ok=True)        # create the folder if it doesn't exist yet
+
+cache_dir = None                                                     # None = Hugging Face's default download folder
+save_path_100k = os.path.join(OUTPUT_DIR, "bert_giga_preprocessed.pt") # all labelled sentences
+save_dir = OUTPUT_DIR                                                # checkpoints are saved here
+
+
 with open("", "rb") as f:
     punkt_tokenizer = pickle.load(f)
 
@@ -41,8 +50,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")
 
 # Load Tokenizer and Sentence Splitter
-cache_dir = ""
-tokenizer = BertTokenizer.from_pretrained("bert-base-uncased", cache_dir=cache_dir, local_files_only=True)
+tokenizer = BertTokenizer.from_pretrained(MODEL_NAME, cache_dir=cache_dir, local_files_only=True)
 
 punkt_tokenizer = PunktSentenceTokenizer()
 
@@ -54,7 +62,7 @@ def split_into_sentences(text):
 
 # Model Definition
 class BertForExtractiveSummarization(nn.Module):
-    def __init__(self, pretrained_model="bert-base-uncased"):
+    def __init__(self, pretrained_model=MODEL_NAME):
         super().__init__()
         self.bert = BertModel.from_pretrained(pretrained_model, cache_dir=cache_dir, local_files_only=True)
         self.classifier = nn.Linear(self.bert.config.hidden_size, 1)
@@ -95,7 +103,6 @@ def label_sentences(sentences, reference, top_k=3):
 
 # Load full GIGAWORD training data
 import os
-os.environ["HF_DATASETS_CACHE"] = ""
 
 from datasets import load_dataset
 dataset = load_dataset("gigaword", split="train")  # Will now load offline ?
@@ -125,13 +132,12 @@ for idx, example in enumerate(tqdm(dataset, total=max_articles, desc="Preprocess
         print(f" Processed {idx+1} articles - total samples so far: {len(processed_samples)}")
 
 # Save the preprocessed 100k samples
-save_path_100k = ""
 torch.save(processed_samples, save_path_100k)
 print(f" Saved {len(processed_samples)} samples to {save_path_100k}")
 
 # === Load Preprocessed GIGAWORD Samples ===
 print(" Loading GIGAWORD preprocessed samples...")
-samples = torch.load("", map_location="cpu")
+samples = torch.load(save_path_100k, map_location="cpu")
 
 # Shuffle and sample 100k
 random.shuffle(samples)
@@ -155,8 +161,6 @@ if torch.cuda.device_count() > 1:
 optimizer = AdamW(model.parameters(), lr=2e-5)
 loss_fn = nn.BCEWithLogitsLoss()
 
-save_dir = ""
-os.makedirs(save_dir, exist_ok=True)
 save_path = os.path.join(save_dir, "best_bert_gigaword_model.pt")
 checkpoint_path = os.path.join(save_dir, "bert_gigaword_checkpoint.pt")
 
