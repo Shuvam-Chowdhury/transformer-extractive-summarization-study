@@ -95,34 +95,42 @@ full_val_split = raw_dataset["validation"]
 val_data = full_val_split.select(range(2000))
 test_data = full_val_split.select(range(2000, 12000))
 
-# Preprocessing
-samples = []
-print(" Preprocessing 100k training samples with checkpointing...")
-for i in range(min(100000, len(train_articles))):
-    article = train_articles[i]['document']
-    summary = train_articles[i]['summary']
-    sentences = split_into_sentences(article)
-    if not sentences:
-        continue
-    labels = label_sentences(sentences, summary)
-    tokenized = tokenizer(sentences, padding="max_length", truncation=True, max_length=128, return_tensors="pt")
-    for j in range(len(sentences)):
-        samples.append({
-            "input_ids": tokenized['input_ids'][j],
-            "attention_mask": tokenized['attention_mask'][j],
-            "label": labels[j]
-        })
-    if (i + 1) % 10000 == 0:
-        print(f" Processed {i+1} articles — saving progress")
-        torch.save(samples, sample_ckpt_path)
+# Preprocessing (skipped if the preprocessed file is already saved)
+if os.path.exists(save_path_100k):
+    print(f"Found preprocessed samples at {save_path_100k}")
+    samples = torch.load(save_path_100k, map_location="cpu")
+else:
+    samples = []
+    print(" Preprocessing 100k training samples with checkpointing...")
+    for i in range(min(100000, len(train_articles))):
+        article = train_articles[i]['document']
+        summary = train_articles[i]['summary']
+        sentences = split_into_sentences(article)
+        if not sentences:
+            continue
+        labels = label_sentences(sentences, summary)
+        tokenized = tokenizer(sentences, padding="max_length", truncation=True, max_length=128, return_tensors="pt")
+        for j in range(len(sentences)):
+            samples.append({
+                "input_ids": tokenized['input_ids'][j],
+                "attention_mask": tokenized['attention_mask'][j],
+                "label": labels[j]
+            })
+        if (i + 1) % 10000 == 0:
+            print(f" Processed {i+1} articles — saving progress")
+            torch.save(samples, sample_ckpt_path)
 
-torch.save(samples, save_path_100k)
+    torch.save(samples, save_path_100k)
 
 # Training setup
 train_dataset = ExtractiveDataset(samples)
 train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
 
 model = GPT2ExtractiveSummarizer().to(device)
+if torch.cuda.device_count() > 1:
+    print(f"Using {torch.cuda.device_count()} GPUs via DataParallel")
+    model = nn.DataParallel(model)
+
 optimizer = AdamW(model.parameters(), lr=2e-5)
 loss_fn = nn.BCEWithLogitsLoss()
 
@@ -204,7 +212,13 @@ for epoch in range(start_epoch, num_epochs):
     print(f" Checkpoint saved at epoch {epoch+1}")
 
 # Final Evaluation on Test Set
-model.load_state_dict(torch.load(save_path, map_location=device))
+# Load the best model into a fresh single-GPU copy
+model = GPT2ExtractiveSummarizer().to(device)
+state_dict = torch.load(save_path, map_location=device)
+if any(k.startswith("module.") for k in state_dict.keys()):
+    print(" Stripping 'module.' prefixes from DataParallel model...")
+    state_dict = {k.replace("module.", ""): v for k, v in state_dict.items()}
+model.load_state_dict(state_dict)
 
 def evaluate_on_test(model, dataset, tokenizer, device, max_samples=10000):
     model.eval()
@@ -229,7 +243,7 @@ def evaluate_on_test(model, dataset, tokenizer, device, max_samples=10000):
             rouge1_total += scores['rouge1'].fmeasure
             rouge2_total += scores['rouge2'].fmeasure
             rougeL_total += scores['rougeL'].fmeasure
-            meteor_total += single_meteor_score(reference, pred_summary)
+            meteor_total += single_meteor_score(reference.split(), pred_summary.split())
             references.append(reference)
             predictions.append(pred_summary)
 

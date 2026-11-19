@@ -89,7 +89,6 @@ class SummarizationDataset(torch.utils.data.Dataset):
 
 
 # === Preprocess GIGAWORD to create 100k samples ===
-print(" Starting preprocessing of 100,000 GIGAWORD examples...")
 
 from rouge_score import rouge_scorer
 
@@ -103,35 +102,39 @@ def label_sentences(sentences, reference, top_k=3):
 import os
 
 from datasets import load_dataset
-dataset = load_dataset("gigaword", split="train")  # Will now load offline ?
+if os.path.exists(save_path_100k):
+    print(f"Found preprocessed samples at {save_path_100k}")
+else:
+    print(" Starting preprocessing of 100,000 GIGAWORD examples...")
+    dataset = load_dataset("gigaword", split="train")  # Will now load offline ?
 
 
-processed_samples = []
-max_articles = 100000
+    processed_samples = []
+    max_articles = 100000
 
-for idx, example in enumerate(tqdm(dataset, total=max_articles, desc="Preprocessing")):
-    if idx >= max_articles:
-        break
-    article = example["document"]
-    summary = example["summary"]
-    sentences = split_into_sentences(article)
-    if not sentences:
-        continue
-    labels = label_sentences(sentences, summary)
-    for j, sentence in enumerate(sentences):
-        prompt_tokens = tokenizer(sentence, padding="max_length", truncation=True, max_length=128, return_tensors="pt")
-        processed_samples.append({
-            "input_ids": prompt_tokens['input_ids'].squeeze(0),
-            "attention_mask": prompt_tokens['attention_mask'].squeeze(0),
-            "label": labels[j]
-        })
+    for idx, example in enumerate(tqdm(dataset, total=max_articles, desc="Preprocessing")):
+        if idx >= max_articles:
+            break
+        article = example["document"]
+        summary = example["summary"]
+        sentences = split_into_sentences(article)
+        if not sentences:
+            continue
+        labels = label_sentences(sentences, summary)
+        for j, sentence in enumerate(sentences):
+            prompt_tokens = tokenizer(sentence, padding="max_length", truncation=True, max_length=128, return_tensors="pt")
+            processed_samples.append({
+                "input_ids": prompt_tokens['input_ids'].squeeze(0),
+                "attention_mask": prompt_tokens['attention_mask'].squeeze(0),
+                "label": labels[j]
+            })
 
-    if (idx + 1) % 10000 == 0:
-        print(f" Processed {idx+1} articles - total samples so far: {len(processed_samples)}")
+        if (idx + 1) % 10000 == 0:
+            print(f" Processed {idx+1} articles - total samples so far: {len(processed_samples)}")
 
-# Save the preprocessed 100k samples
-torch.save(processed_samples, save_path_100k)
-print(f" Saved {len(processed_samples)} samples to {save_path_100k}")
+    # Save the preprocessed 100k samples
+    torch.save(processed_samples, save_path_100k)
+    print(f" Saved {len(processed_samples)} samples to {save_path_100k}")
 
 # === Load Preprocessed GIGAWORD Samples ===
 print(" Loading GIGAWORD preprocessed samples...")

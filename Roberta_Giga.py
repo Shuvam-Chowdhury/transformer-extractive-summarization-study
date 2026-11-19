@@ -92,7 +92,6 @@ class SummarizationDataset(torch.utils.data.Dataset):
 
 if os.path.exists(save_path_100k):
     print(f"Found preprocessed samples at {save_path_100k}")
-    processed_samples = torch.load(save_path_100k)
 else:
     print("Preprocessing not found. Starting preprocessing...")
 

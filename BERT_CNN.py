@@ -40,7 +40,6 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)        # create the folder if it doesn't 
 
 cache_dir = None                                                     # None = Hugging Face's default download folder
 samples_path = os.path.join(OUTPUT_DIR, "bert_cnn_preprocessed.pt")  # all labelled sentences
-sampled_path = os.path.join(OUTPUT_DIR, "bert_cnn_100k.pt")          # the 100k-sentence training sample
 save_dir = OUTPUT_DIR                                                # checkpoints are saved here
 
 
@@ -91,43 +90,57 @@ class SummarizationDataset(torch.utils.data.Dataset):
             "attention_mask": sample["attention_mask"],
             "label": torch.tensor(sample["label"], dtype=torch.float)
         }
-        
-        
-# === Load and Prepare Data ===
-# Load and shuffle a subset of preprocessed samples
-all_samples = torch.load(sampled_path, map_location="cpu")
-train_samples, val_samples = all_samples[:98000], all_samples[98000:]
 
-train_loader = DataLoader(SummarizationDataset(train_samples), batch_size=64, shuffle=True)
-val_dataset = load_dataset("cnn_dailymail", "3.0.0")['validation'].select(range(2000))
-test_dataset = load_dataset("cnn_dailymail", "3.0.0")['test'].select(range(10000))
 
-# === Initialize Model, Optimizer, and Loss ===
-model = BertForExtractiveSummarization().to(device)
-optimizer = AdamW(model.parameters(), lr=2e-5)
-loss_fn = nn.BCEWithLogitsLoss()
+# === Preprocess CNN/DailyMail (skipped if the preprocessed file is already saved) ===
+def label_sentences(sentences, reference, top_k=3):
+    scorer = rouge_scorer.RougeScorer(['rougeL'], use_stemmer=True)
+    scores = [scorer.score(reference, sent)['rougeL'].fmeasure for sent in sentences]
+    top_idxs = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)[:top_k]
+    return [1 if i in top_idxs else 0 for i in range(len(sentences))]
 
-if os.path.exists(sampled_path):
-    print("?? Loading previously sampled 100k samples...")
-    samples = torch.load(sampled_path, map_location="cpu")
+if os.path.exists(samples_path):
+    print(f"Found preprocessed samples at {samples_path}")
 else:
-    if os.path.exists(samples_path):
-        print("?? Sampling 100,000 examples from preprocessed dataset...")
-        all_samples = torch.load(samples_path, map_location="cpu")
-        total = len(all_samples)
-        indices = torch.randperm(total)[:100000].tolist()
-        samples = [all_samples[i] for i in tqdm(indices, desc="Sampling", ncols=100)]
-        random.shuffle(samples)
-        torch.save(samples, sampled_path)
-        print(f"? Sampled and saved {len(samples)} out of {total} entries.")
-    else:
-        print("? Preprocessed sample file not found. Exiting.")
-        sys.exit(1)
+    print("Preprocessing not found. Starting preprocessing...")
+    dataset = load_dataset("cnn_dailymail", "3.0.0", split="train")
+    processed_samples = []
+    max_articles = 100000
 
-# TRAINING
-train_dataset = SummarizationDataset(samples)
-train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
+    for idx, example in enumerate(tqdm(dataset, total=max_articles, desc="Preprocessing")):
+        if idx >= max_articles:
+            break
+        article = example["article"]
+        summary = example["highlights"]
 
+        sentences = split_into_sentences(article)
+        if not sentences:
+            continue
+        labels = label_sentences(sentences, summary)
+        for j, sentence in enumerate(sentences):
+            prompt_tokens = tokenizer(sentence, padding="max_length", truncation=True, max_length=128, return_tensors="pt")
+            processed_samples.append({
+                "input_ids": prompt_tokens['input_ids'].squeeze(0),
+                "attention_mask": prompt_tokens['attention_mask'].squeeze(0),
+                "label": labels[j]
+            })
+
+        if (idx + 1) % 10000 == 0:
+            print(f"Processed {idx+1} articles - total samples so far: {len(processed_samples)}")
+
+    torch.save(processed_samples, samples_path)
+    print(f" Saved {len(processed_samples)} samples to {samples_path}")
+
+# === Training data: shuffle and keep 100k sentences ===
+samples = torch.load(samples_path, map_location="cpu")
+random.shuffle(samples)
+samples = samples[:100000]
+
+train_loader = DataLoader(SummarizationDataset(samples), batch_size=64, shuffle=True)
+val_dataset = load_dataset("cnn_dailymail", "3.0.0", split="validation[:2000]")
+test_dataset = load_dataset("cnn_dailymail", "3.0.0", split="test[:10000]")
+
+# === Model, optimizer, loss (built once) ===
 model = BertForExtractiveSummarization().to(device)
 if torch.cuda.device_count() > 1:
     print(f"Using {torch.cuda.device_count()} GPUs via DataParallel")
@@ -138,7 +151,6 @@ loss_fn = nn.BCEWithLogitsLoss()
 
 save_path = os.path.join(save_dir, "best_bert_model.pt")
 checkpoint_path = os.path.join(save_dir, "training_checkpoint.pt")
-metrics_path = os.path.join(save_dir, "bert_eval_metrics.txt")
 
 # Helper: compute average ROUGE-L on val set
 def compute_rougeL_on_validation(model, val_dataset, tokenizer, device, max_samples=2000):

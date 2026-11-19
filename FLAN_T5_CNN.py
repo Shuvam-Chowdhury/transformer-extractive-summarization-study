@@ -87,7 +87,6 @@ class SummarizationDataset(torch.utils.data.Dataset):
 
 if os.path.exists(save_path_100k):
     print(f"Found preprocessed samples at {save_path_100k}")
-    processed_samples = torch.load(save_path_100k)
 else:
     print("Preprocessing not found. Starting preprocessing...")
 
@@ -126,7 +125,7 @@ random.shuffle(samples)
 train_samples = samples[:100000]  # Ensure exactly 100k samples
 train_loader = DataLoader(SummarizationDataset(train_samples), batch_size=64, shuffle=True)
 val_dataset = load_dataset("cnn_dailymail", "3.0.0", split="validation[:2000]")
-test_dataset = load_dataset("cnn_dailymail", "3.0.0", split="validation[2000:12000]")
+test_dataset = load_dataset("cnn_dailymail", "3.0.0", split="test[:10000]")
 
 
 # Model Initialization
@@ -138,8 +137,8 @@ if torch.cuda.device_count() > 1:
 optimizer = AdamW(model.parameters(), lr=2e-5)
 loss_fn = nn.BCEWithLogitsLoss()
 
-save_path = os.path.join(save_dir, "best_flan_t5_gigaword_model.pt")
-checkpoint_path = os.path.join(save_dir, "best_flan_t5_gigaword_checkpoint.pt")
+save_path = os.path.join(save_dir, "best_flan_t5_cnn_dailymail_model.pt")
+checkpoint_path = os.path.join(save_dir, "best_flan_t5_cnn_dailymail_checkpoint.pt")
 
 # Validation Helper
 def compute_rougeL_on_validation(model, val_dataset, tokenizer, device, max_samples=2000):
