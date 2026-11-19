@@ -35,6 +35,13 @@ print = functools.partial(print, flush=True)
 # === Settings: paths (change OUTPUT_DIR to run somewhere other than Kaggle) ===
 MODEL_NAME = "google/flan-t5-small"         # Hugging Face model to download
 OUTPUT_DIR = "/kaggle/working/flan_t5_cnn"  # Kaggle keeps this folder when you save a version
+QUICK_RUN = "--quick" in sys.argv                # run "python <script>.py --quick" for a fast smoke test
+NUM_ARTICLES = 200 if QUICK_RUN else 100000      # training articles to preprocess
+NUM_EPOCHS = 1 if QUICK_RUN else 3               # training epochs
+NUM_VAL = 50 if QUICK_RUN else 2000              # validation articles scored after each epoch
+NUM_TEST = 50 if QUICK_RUN else 10000            # test articles in the final evaluation
+if QUICK_RUN:
+    OUTPUT_DIR = OUTPUT_DIR + "_quick"           # keep smoke-test files apart from the real run
 os.makedirs(OUTPUT_DIR, exist_ok=True)        # create the folder if it doesn't exist yet
 
 SEED = 42                         # same seed in every script so runs can be repeated
@@ -107,8 +114,8 @@ else:
 
     dataset = load_dataset("cnn_dailymail", "3.0.0", split="train")
     processed_samples = []
-    for idx, example in enumerate(tqdm(dataset, total=100000)):
-        if idx >= 100000:
+    for idx, example in enumerate(tqdm(dataset, total=NUM_ARTICLES)):
+        if idx >= NUM_ARTICLES:
             break
         article = example["article"]
         summary = example["highlights"]
@@ -152,7 +159,7 @@ checkpoint_path = os.path.join(save_dir, "best_flan_t5_cnn_dailymail_checkpoint.
 
 # Training Loop
 best_rougeL, best_loss = 0, float("inf")
-patience, no_improve, num_epochs = 3, 0, 3
+patience, no_improve, num_epochs = 3, 0, NUM_EPOCHS
 
 print("\n Training started...")
 for epoch in range(num_epochs):
@@ -176,7 +183,7 @@ for epoch in range(num_epochs):
             print(f"Batch {i+1}/{len(train_loader)} | Loss: {loss.item():.4f}")
 
     avg_loss = total_loss / len(train_loader)
-    val_rougeL = compute_rougeL_on_validation(model, val_dataset, tokenizer, device, TEXT_KEY, SUMMARY_KEY)
+    val_rougeL = compute_rougeL_on_validation(model, val_dataset, tokenizer, device, TEXT_KEY, SUMMARY_KEY, max_samples=NUM_VAL)
     print(f" Epoch {epoch+1} Summary | Train Loss: {avg_loss:.4f} | Validation ROUGE-L: {val_rougeL:.4f}")
 
     is_better = val_rougeL > best_rougeL or (val_rougeL == best_rougeL and avg_loss < best_loss)
@@ -209,7 +216,7 @@ if any(k.startswith("module.") for k in state_dict.keys()):
     state_dict = {k.replace("module.", ""): v for k, v in state_dict.items()}
 model.load_state_dict(state_dict)
 
-evaluate_model(model, test_dataset, tokenizer, device, TEXT_KEY, SUMMARY_KEY, output_dir=OUTPUT_DIR)
+evaluate_model(model, test_dataset, tokenizer, device, TEXT_KEY, SUMMARY_KEY, output_dir=OUTPUT_DIR, max_samples=NUM_TEST)
 
 print("\n All done training and evaluating FLAN-T5-Small on CNNDAILY!")
 

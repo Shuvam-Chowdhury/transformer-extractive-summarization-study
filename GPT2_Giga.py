@@ -38,6 +38,13 @@ print = functools.partial(print, flush=True)
 # === Settings: paths (change OUTPUT_DIR to run somewhere other than Kaggle) ===
 MODEL_NAME = "gpt2"                         # Hugging Face model to download
 OUTPUT_DIR = "/kaggle/working/gpt2_giga"    # Kaggle keeps this folder when you save a version
+QUICK_RUN = "--quick" in sys.argv                # run "python <script>.py --quick" for a fast smoke test
+NUM_ARTICLES = 200 if QUICK_RUN else 100000      # training articles to preprocess
+NUM_EPOCHS = 1 if QUICK_RUN else 3               # training epochs
+NUM_VAL = 50 if QUICK_RUN else 2000              # validation articles scored after each epoch
+NUM_TEST = 50 if QUICK_RUN else 10000            # test articles in the final evaluation
+if QUICK_RUN:
+    OUTPUT_DIR = OUTPUT_DIR + "_quick"           # keep smoke-test files apart from the real run
 os.makedirs(OUTPUT_DIR, exist_ok=True)        # create the folder if it doesn't exist yet
 
 SEED = 42                         # same seed in every script so runs can be repeated
@@ -111,7 +118,7 @@ if os.path.exists(save_path_100k):
 else:
     samples = []
     print(" Preprocessing 100k training samples with checkpointing...")
-    for i in range(min(100000, len(train_articles))):
+    for i in range(min(NUM_ARTICLES, len(train_articles))):
         article = train_articles[i]['document']
         summary = train_articles[i]['summary']
         sentences = split_into_sentences(article)
@@ -151,7 +158,7 @@ checkpoint_path = os.path.join(save_dir, "gpt2_extractive_checkpoint_gigaword.pt
 start_epoch = 0
 best_rougel = 0.0
 best_loss = float("inf")                    # training loss of the best epoch (breaks ties in ROUGE-L)
-patience, no_improve, num_epochs = 3, 0, 3   # same early-stopping settings as the other scripts
+patience, no_improve, num_epochs = 3, 0, NUM_EPOCHS   # same early-stopping settings as the other scripts
 
 if os.path.exists(checkpoint_path):
     print(" Resuming from checkpoint...")
@@ -188,7 +195,7 @@ for epoch in range(start_epoch, num_epochs):
     avg_loss = total_loss / len(train_loader)
     print(f" Epoch {epoch+1} Avg Loss: {avg_loss:.4f}")
 
-    val_rougel = compute_rougeL_on_validation(model, val_data, tokenizer, device, TEXT_KEY, SUMMARY_KEY)
+    val_rougel = compute_rougeL_on_validation(model, val_data, tokenizer, device, TEXT_KEY, SUMMARY_KEY, max_samples=NUM_VAL)
     print(f" Validation ROUGE-L: {val_rougel:.4f}")
 
     # Same rule as the other scripts: higher validation ROUGE-L wins, lower training loss breaks a tie
@@ -226,4 +233,4 @@ model.load_state_dict(state_dict)
 
 
 # Run test evaluation
-evaluate_model(model, test_data, tokenizer, device, TEXT_KEY, SUMMARY_KEY, output_dir=OUTPUT_DIR)
+evaluate_model(model, test_data, tokenizer, device, TEXT_KEY, SUMMARY_KEY, output_dir=OUTPUT_DIR, max_samples=NUM_TEST)

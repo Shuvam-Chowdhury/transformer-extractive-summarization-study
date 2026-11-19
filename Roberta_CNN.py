@@ -37,6 +37,13 @@ print = functools.partial(print, flush=True)
 # === Settings: paths (change OUTPUT_DIR to run somewhere other than Kaggle) ===
 MODEL_NAME = "roberta-base"                 # Hugging Face model to download
 OUTPUT_DIR = "/kaggle/working/roberta_cnn"  # Kaggle keeps this folder when you save a version
+QUICK_RUN = "--quick" in sys.argv                # run "python <script>.py --quick" for a fast smoke test
+NUM_ARTICLES = 200 if QUICK_RUN else 100000      # training articles to preprocess
+NUM_EPOCHS = 1 if QUICK_RUN else 3               # training epochs
+NUM_VAL = 50 if QUICK_RUN else 2000              # validation articles scored after each epoch
+NUM_TEST = 50 if QUICK_RUN else 10000            # test articles in the final evaluation
+if QUICK_RUN:
+    OUTPUT_DIR = OUTPUT_DIR + "_quick"           # keep smoke-test files apart from the real run
 os.makedirs(OUTPUT_DIR, exist_ok=True)        # create the folder if it doesn't exist yet
 
 SEED = 42                         # same seed in every script so runs can be repeated
@@ -117,7 +124,7 @@ else:
 
 
     processed_samples = []
-    max_articles = 100000
+    max_articles = NUM_ARTICLES
 
     for idx, example in enumerate(tqdm(dataset, total=max_articles, desc="Preprocessing")):
         if idx >= max_articles:
@@ -178,7 +185,7 @@ checkpoint_path = os.path.join(save_dir, "best_roberta_cnn_dailymail_checkpoint.
 
 # === Training ===
 best_rougeL, best_loss = 0, float("inf")
-patience, no_improve, num_epochs = 3, 0, 3
+patience, no_improve, num_epochs = 3, 0, NUM_EPOCHS
 
 print("\n Training started...")
 for epoch in range(num_epochs):
@@ -202,7 +209,7 @@ for epoch in range(num_epochs):
             print(f"Batch {i+1}/{len(train_loader)} | Loss: {loss.item():.4f}")
 
     avg_loss = total_loss / len(train_loader)
-    val_rougeL = compute_rougeL_on_validation(model, val_dataset, tokenizer, device, TEXT_KEY, SUMMARY_KEY)
+    val_rougeL = compute_rougeL_on_validation(model, val_dataset, tokenizer, device, TEXT_KEY, SUMMARY_KEY, max_samples=NUM_VAL)
     print(f" Epoch {epoch+1} Summary | Train Loss: {avg_loss:.4f} | Validation ROUGE-L: {val_rougeL:.4f}")
 
     is_better = val_rougeL > best_rougeL or (val_rougeL == best_rougeL and avg_loss < best_loss)
@@ -238,6 +245,6 @@ if any(k.startswith("module.") for k in state_dict.keys()):
 model.load_state_dict(state_dict)
 
 # Evaluate
-evaluate_model(model, test_dataset, tokenizer, device, TEXT_KEY, SUMMARY_KEY, output_dir=OUTPUT_DIR)  # test[:10000], same as every model
+evaluate_model(model, test_dataset, tokenizer, device, TEXT_KEY, SUMMARY_KEY, output_dir=OUTPUT_DIR, max_samples=NUM_TEST)  # test[:10000], same as every model
 
 print("\n All done training and evaluating on cnn_dailymail!")
