@@ -73,7 +73,7 @@ transformer-extractive-summarization-study/
 Clone the repo:
 
 ```bash
-git clone https://github.com/<your-username>/transformer-extractive-summarization-study.git
+git clone https://github.com/Shuvam-Chowdhury/transformer-extractive-summarization-study.git
 cd transformer-extractive-summarization-study
 
 ```
