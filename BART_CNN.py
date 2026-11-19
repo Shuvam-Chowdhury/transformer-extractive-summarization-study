@@ -30,6 +30,7 @@ from datasets import load_dataset
 from rouge_score import rouge_scorer
 from bert_score import score as bert_score
 from tqdm import tqdm
+from eval_utils import compute_rougeL_on_validation, evaluate_model  # shared evaluation (same for every model)
 
 print = functools.partial(print, flush=True)
 
@@ -48,6 +49,8 @@ cache_dir = None                                                     # None = Hu
 save_path_100k = os.path.join(OUTPUT_DIR, "bart_cnn_preprocessed.pt") # all labelled sentences
 pretrained_model_path = MODEL_NAME                                   # model name passed to from_pretrained
 save_dir = OUTPUT_DIR                                                # checkpoints are saved here
+TEXT_KEY = "article"      # dataset column with the article text
+SUMMARY_KEY = "highlights" # dataset column with the reference summary
 
 
 # Device Setup
@@ -164,31 +167,6 @@ loss_fn = nn.BCEWithLogitsLoss()
 save_path = os.path.join(save_dir, "best_bart_cnn_dailymail_model.pt")
 checkpoint_path = os.path.join(save_dir, "best_bart_cnn_dailymail_checkpoint.pt")
 
-# Helper for ROUGE-L Computation
-def compute_rougeL_on_validation(model, val_dataset, tokenizer, device, max_samples=2000):
-    model.eval()
-    scorer = rouge_scorer.RougeScorer(["rougeL"], use_stemmer=True)
-    total_rougeL = 0
-    n = 0
-    with torch.no_grad():
-        for i in range(min(max_samples, len(val_dataset))):
-            article = val_dataset[i]['article']
-            summary = val_dataset[i]['highlights']
-            sentences = split_into_sentences(article)
-            if not sentences:
-                continue
-            tokenized = tokenize_sentences(sentences)
-            input_ids = tokenized['input_ids'].to(device)
-            attention_mask = tokenized['attention_mask'].to(device)
-            logits = model(input_ids, attention_mask).squeeze(0)
-            if logits.dim() == 0:
-                continue
-            top_indices = sorted(range(len(logits)), key=lambda i: logits[i], reverse=True)[:3]
-            pred_summary = " ".join([sentences[i] for i in top_indices])
-            score = scorer.score(summary, pred_summary)
-            total_rougeL += score["rougeL"].fmeasure
-            n += 1
-    return total_rougeL / n if n else 0.0
 
 # Training Loop
 best_rougeL, best_loss = 0, float("inf")
@@ -216,7 +194,7 @@ for epoch in range(num_epochs):
             print(f"Batch {i+1}/{len(train_loader)} | Loss: {loss.item():.4f}")
 
     avg_loss = total_loss / len(train_loader)
-    val_rougeL = compute_rougeL_on_validation(model, val_dataset, tokenizer, device)
+    val_rougeL = compute_rougeL_on_validation(model, val_dataset, tokenizer, device, TEXT_KEY, SUMMARY_KEY)
     print(f" Epoch {epoch+1} Summary | Train Loss: {avg_loss:.4f} | Validation ROUGE-L: {val_rougeL:.4f}")
 
     is_better = val_rougeL > best_rougeL or (val_rougeL == best_rougeL and avg_loss < best_loss)
@@ -240,42 +218,6 @@ for epoch in range(num_epochs):
     }, checkpoint_path)
     print(f" Checkpoint saved at epoch {epoch+1}")
 
-# Final Evaluation
-def evaluate_model(model, dataset, tokenizer, device, max_samples=10000):
-    model.eval()
-    rouge = rouge_scorer.RougeScorer(['rouge1', 'rouge2', 'rougeL'], use_stemmer=True)
-    meteor_total, rouge1_total, rouge2_total, rougeL_total = 0, 0, 0, 0
-    references, predictions = [], []
-    with torch.no_grad():
-        for i in range(min(max_samples, len(dataset))):
-            article = dataset[i]['article']
-            summary = dataset[i]['highlights']
-            sentences = split_into_sentences(article)
-            if not sentences:
-                continue
-            tokenized = tokenize_sentences(sentences)
-            input_ids = tokenized['input_ids'].to(device)
-            attention_mask = tokenized['attention_mask'].to(device)
-            logits = model(input_ids, attention_mask).squeeze(0)
-            if logits.dim() == 0:
-                continue
-            top_indices = sorted(range(len(logits)), key=lambda i: logits[i], reverse=True)[:3]
-            pred_summary = " ".join([sentences[i] for i in top_indices])
-            scores = rouge.score(summary, pred_summary)
-            rouge1_total += scores['rouge1'].fmeasure
-            rouge2_total += scores['rouge2'].fmeasure
-            rougeL_total += scores['rougeL'].fmeasure
-            meteor_total += single_meteor_score(summary.split(), pred_summary.split())
-            references.append(summary)
-            predictions.append(pred_summary)
-    precision, recall, f1 = bert_score(predictions, references, lang='en', verbose=False)
-    n = len(predictions)
-    print(f"\n Final Evaluation on {n} samples")
-    print(f"ROUGE-1 F1: {rouge1_total / n:.4f}")
-    print(f"ROUGE-2 F1: {rouge2_total / n:.4f}")
-    print(f"ROUGE-L F1: {rougeL_total / n:.4f}")
-    print(f"METEOR:     {meteor_total / n:.4f}")
-    print(f"BERTScore P/R/F1: {precision.mean().item():.4f} / {recall.mean().item():.4f} / {f1.mean().item():.4f}")
 
 # Load and Evaluate Best Model
 model = BartForExtractiveSummarization(pretrained_model_path=pretrained_model_path).to(device)
@@ -285,6 +227,6 @@ if any(k.startswith("module.") for k in state_dict.keys()):
     state_dict = {k.replace("module.", ""): v for k, v in state_dict.items()}
 model.load_state_dict(state_dict)
 
-evaluate_model(model, test_dataset, tokenizer, device)  # test[:10000], same as every model
+evaluate_model(model, test_dataset, tokenizer, device, TEXT_KEY, SUMMARY_KEY, output_dir=OUTPUT_DIR)  # test[:10000], same as every model
 
 print("\n All done training and evaluating BART on CNN/DailyMail!")

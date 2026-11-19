@@ -24,6 +24,7 @@ from datasets import load_dataset
 from rouge_score import rouge_scorer
 from bert_score import score as bert_score
 from tqdm import tqdm
+from eval_utils import compute_rougeL_on_validation, evaluate_model  # shared evaluation (same for every model)
 
 import nltk
 nltk.download("punkt_tab", quiet=True)   # pretrained sentence splitter (the same one the eval notebooks used)
@@ -49,6 +50,8 @@ cache_dir = None                                                     # None = Hu
 sample_ckpt_path = os.path.join(OUTPUT_DIR, "gpt2_giga_preprocess_progress.pt") # partial progress while preprocessing
 save_path_100k = os.path.join(OUTPUT_DIR, "gpt2_giga_preprocessed.pt") # all labelled sentences
 save_dir = OUTPUT_DIR                                                # checkpoints are saved here
+TEXT_KEY = "document"     # dataset column with the article text
+SUMMARY_KEY = "summary"   # dataset column with the reference summary
 
 
 # Load sentence tokenizer
@@ -160,27 +163,6 @@ if os.path.exists(checkpoint_path):
     no_improve = checkpoint.get('no_improve', 0)
     start_epoch = checkpoint['epoch'] + 1
 
-# Evaluation Function
-def evaluate_rougel(model, val_data, tokenizer, device, max_samples=2000):
-    model.eval()
-    scorer = rouge_scorer.RougeScorer(['rougeL'], use_stemmer=True)
-    total_score = 0.0
-    with torch.no_grad():
-        for i in range(min(max_samples, len(val_data))):
-            article = val_data[i]['document']
-            reference = val_data[i]['summary']
-            sentences = split_into_sentences(article)
-            if not sentences:
-                continue
-            tokenized = tokenizer(sentences, padding="max_length", truncation=True, max_length=128, return_tensors="pt")
-            input_ids = tokenized['input_ids'].to(device)
-            attention_mask = tokenized['attention_mask'].to(device)
-            logits = model(input_ids, attention_mask)
-            topk = torch.topk(logits, k=min(3, len(sentences))).indices.tolist()
-            pred_summary = " ".join([sentences[i] for i in topk])
-            score = scorer.score(reference, pred_summary)['rougeL'].fmeasure
-            total_score += score
-    return total_score / max_samples
 
 # Training Loop
 print("🚀 Training GPT2 Extractive Model")
@@ -206,7 +188,7 @@ for epoch in range(start_epoch, num_epochs):
     avg_loss = total_loss / len(train_loader)
     print(f" Epoch {epoch+1} Avg Loss: {avg_loss:.4f}")
 
-    val_rougel = evaluate_rougel(model, val_data, tokenizer, device)
+    val_rougel = compute_rougeL_on_validation(model, val_data, tokenizer, device, TEXT_KEY, SUMMARY_KEY)
     print(f" Validation ROUGE-L: {val_rougel:.4f}")
 
     # Same rule as the other scripts: higher validation ROUGE-L wins, lower training loss breaks a tie
@@ -242,41 +224,6 @@ if any(k.startswith("module.") for k in state_dict.keys()):
     state_dict = {k.replace("module.", ""): v for k, v in state_dict.items()}
 model.load_state_dict(state_dict)
 
-def evaluate_on_test(model, dataset, tokenizer, device, max_samples=10000):
-    model.eval()
-    rouge = rouge_scorer.RougeScorer(['rouge1', 'rouge2', 'rougeL'], use_stemmer=True)
-    meteor_total, rouge1_total, rouge2_total, rougeL_total = 0, 0, 0, 0
-    references, predictions = [], []
-
-    with torch.no_grad():
-        for i in range(min(max_samples, len(dataset))):
-            article = dataset[i]['document']
-            reference = dataset[i]['summary']
-            sentences = split_into_sentences(article)
-            if not sentences:
-                continue
-            tokenized = tokenizer(sentences, padding="max_length", truncation=True, max_length=128, return_tensors="pt")
-            input_ids = tokenized['input_ids'].to(device)
-            attention_mask = tokenized['attention_mask'].to(device)
-            logits = model(input_ids, attention_mask)
-            topk = torch.topk(logits, k=min(3, len(sentences))).indices.tolist()
-            pred_summary = " ".join([sentences[i] for i in topk])
-            scores = rouge.score(reference, pred_summary)
-            rouge1_total += scores['rouge1'].fmeasure
-            rouge2_total += scores['rouge2'].fmeasure
-            rougeL_total += scores['rougeL'].fmeasure
-            meteor_total += single_meteor_score(reference.split(), pred_summary.split())
-            references.append(reference)
-            predictions.append(pred_summary)
-
-    n = len(predictions)
-    print(f"\n Final Evaluation on {n} test samples")
-    print(f"ROUGE-1 F1: {rouge1_total / n:.4f}")
-    print(f"ROUGE-2 F1: {rouge2_total / n:.4f}")
-    print(f"ROUGE-L F1: {rougeL_total / n:.4f}")
-    print(f"METEOR:     {meteor_total / n:.4f}")
-    precision, recall, f1 = bert_score(predictions, references, lang='en', verbose=False)
-    print(f"BERTScore P/R/F1: {precision.mean().item():.4f} / {recall.mean().item():.4f} / {f1.mean().item():.4f}")
 
 # Run test evaluation
-evaluate_on_test(model, test_data, tokenizer, device)
+evaluate_model(model, test_data, tokenizer, device, TEXT_KEY, SUMMARY_KEY, output_dir=OUTPUT_DIR)
