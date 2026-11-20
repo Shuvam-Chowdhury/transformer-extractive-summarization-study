@@ -66,9 +66,9 @@ print(f"Using device: {device}")
 # Tokenizer
 try:
     tokenizer = BertTokenizer.from_pretrained(MODEL_NAME, cache_dir=cache_dir)
-    print("? Tokenizer loaded")
+    print("Tokenizer loaded")
 except Exception as e:
-    print(f"? Tokenizer load failed: {e}")
+    print(f"Tokenizer load failed: {e}")
     sys.exit(1)
 
 def tokenize_sentences(sentences):
@@ -173,11 +173,11 @@ checkpoint_path = os.path.join(save_dir, "training_checkpoint.pt")
 best_rougeL, best_loss = 0, float("inf")
 patience, no_improve, num_epochs = 3, 0, NUM_EPOCHS
 
-print("\n?? Training started")
+print("\nTraining started")
 for epoch in range(num_epochs):
     model.train()
     total_loss = 0
-    print(f"\n?? Epoch {epoch+1}/{num_epochs}")
+    print(f"\nEpoch {epoch+1}/{num_epochs}")
     
     for i, batch in enumerate(train_loader):
         inputs = batch["input_ids"].to(device)
@@ -195,19 +195,19 @@ for epoch in range(num_epochs):
 
     avg_loss = total_loss / len(train_loader)
     val_rougeL = compute_rougeL_on_validation(model, val_dataset, tokenizer, device, TEXT_KEY, SUMMARY_KEY, max_samples=NUM_VAL)
-    print(f"? Epoch {epoch+1} completed | Loss: {avg_loss:.4f} | ROUGE-L (Val): {val_rougeL:.4f}")
+    print(f"Epoch {epoch+1} completed | Loss: {avg_loss:.4f} | ROUGE-L (Val): {val_rougeL:.4f}")
 
     is_better = val_rougeL > best_rougeL or (val_rougeL == best_rougeL and avg_loss < best_loss)
     if is_better:
         best_rougeL, best_loss = val_rougeL, avg_loss
         torch.save(model.state_dict(), save_path)
-        print("?? Best model saved.")
+        print("Best model saved.")
         no_improve = 0
     else:
         no_improve += 1
-        print(f"? No improvement | Patience: {no_improve}/{patience}")
+        print(f"No improvement | Patience: {no_improve}/{patience}")
         if no_improve >= patience:
-            print("? Early stopping.")
+            print("Early stopping.")
             break
 
     # Save full checkpoint after every epoch
@@ -218,7 +218,7 @@ for epoch in range(num_epochs):
         'best_rougeL': best_rougeL,
         'best_loss': best_loss
     }, checkpoint_path)
-    print(f"?? Checkpoint saved at epoch {epoch+1}")
+    print(f"Checkpoint saved at epoch {epoch+1}")
 
 
 
@@ -229,11 +229,11 @@ model = BertForExtractiveSummarization().to(device)
 # Load state dict and clean keys if trained with DataParallel
 state_dict = torch.load(save_path, map_location=device)
 if any(k.startswith("module.") for k in state_dict.keys()):
-    print("?? Detected DataParallel-trained model. Stripping 'module.' from keys...")
+    print("Detected DataParallel-trained model. Stripping 'module.' from keys...")
     state_dict = {k.replace("module.", ""): v for k, v in state_dict.items()}
 
 model.load_state_dict(state_dict)
 
 # Run evaluation
 evaluate_model(model, test_dataset, tokenizer, device, TEXT_KEY, SUMMARY_KEY, output_dir=OUTPUT_DIR, max_samples=NUM_TEST)  # test[:10000], same as every model
-print("? All done!")
+print("All done!")

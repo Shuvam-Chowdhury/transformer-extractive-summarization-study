@@ -172,7 +172,7 @@ if os.path.exists(checkpoint_path):
 
 
 # Training Loop
-print("🚀 Training GPT2 Extractive Model")
+print("Training GPT2 Extractive Model")
 for epoch in range(start_epoch, num_epochs):
     model.train()
     total_loss = 0
