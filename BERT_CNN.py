@@ -119,7 +119,7 @@ if os.path.exists(samples_path):
     print(f"Found preprocessed samples at {samples_path}")
 else:
     print("Preprocessing not found. Starting preprocessing...")
-    dataset = load_dataset("cnn_dailymail", "3.0.0", split="train")
+    dataset = load_dataset("abisee/cnn_dailymail", "3.0.0", split="train")
     processed_samples = []
     max_articles = NUM_ARTICLES
 
@@ -153,8 +153,8 @@ random.shuffle(samples)
 samples = samples[:100000]
 
 train_loader = DataLoader(SummarizationDataset(samples), batch_size=64, shuffle=True)
-val_dataset = load_dataset("cnn_dailymail", "3.0.0", split="validation[:2000]")
-test_dataset = load_dataset("cnn_dailymail", "3.0.0", split="test[:10000]")
+val_dataset = load_dataset("abisee/cnn_dailymail", "3.0.0", split="validation[:2000]")
+test_dataset = load_dataset("abisee/cnn_dailymail", "3.0.0", split="test[:10000]")
 
 # === Model, optimizer, loss (built once) ===
 model = BertForExtractiveSummarization().to(device)

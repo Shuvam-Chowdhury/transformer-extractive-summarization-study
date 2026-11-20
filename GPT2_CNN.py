@@ -105,7 +105,7 @@ class ExtractiveDataset(Dataset):
         }
 
 # Load CNN/DailyMail dataset
-raw_dataset = load_dataset("cnn_dailymail", "3.0.0")
+raw_dataset = load_dataset("abisee/cnn_dailymail", "3.0.0")
 train_articles = raw_dataset["train"]
 val_data = raw_dataset["validation"].select(range(2000))
 test_data = raw_dataset["test"].select(range(10000))

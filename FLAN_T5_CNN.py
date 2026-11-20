@@ -112,7 +112,7 @@ else:
         top_idxs = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)[:top_k]
         return [1 if i in top_idxs else 0 for i in range(len(sentences))]
 
-    dataset = load_dataset("cnn_dailymail", "3.0.0", split="train")
+    dataset = load_dataset("abisee/cnn_dailymail", "3.0.0", split="train")
     processed_samples = []
     for idx, example in enumerate(tqdm(dataset, total=NUM_ARTICLES)):
         if idx >= NUM_ARTICLES:
@@ -140,8 +140,8 @@ samples = torch.load(save_path_100k, map_location="cpu")
 random.shuffle(samples)
 train_samples = samples[:100000]  # Ensure exactly 100k samples
 train_loader = DataLoader(SummarizationDataset(train_samples), batch_size=64, shuffle=True)
-val_dataset = load_dataset("cnn_dailymail", "3.0.0", split="validation[:2000]")
-test_dataset = load_dataset("cnn_dailymail", "3.0.0", split="test[:10000]")
+val_dataset = load_dataset("abisee/cnn_dailymail", "3.0.0", split="validation[:2000]")
+test_dataset = load_dataset("abisee/cnn_dailymail", "3.0.0", split="test[:10000]")
 
 
 # Model Initialization

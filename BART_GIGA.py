@@ -56,7 +56,7 @@ cache_dir = None                                                     # None = Hu
 save_path_100k = os.path.join(OUTPUT_DIR, "bart_giga_preprocessed.pt") # all labelled sentences
 pretrained_model_path = MODEL_NAME                                   # model name passed to from_pretrained
 save_dir = OUTPUT_DIR                                                # checkpoints are saved here
-TEXT_KEY = "document"     # dataset column with the article text
+TEXT_KEY = "article"      # dataset column with the article text
 SUMMARY_KEY = "summary"   # dataset column with the reference summary
 
 
@@ -117,14 +117,14 @@ else:
         top_idxs = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)[:top_k]
         return [1 if i in top_idxs else 0 for i in range(len(sentences))]
 
-    dataset = load_dataset("gigaword", split="train")
+    dataset = load_dataset("SalmanFaroz/gigaword", split="train")
     processed_samples = []
     max_articles = NUM_ARTICLES
 
     for idx, example in enumerate(tqdm(dataset, total=max_articles, desc="Preprocessing")):
         if idx >= max_articles:
             break
-        article = example["document"]
+        article = example[TEXT_KEY]
         summary = example["summary"]
 
         sentences = split_into_sentences(article)
@@ -156,7 +156,7 @@ train_samples = samples  # all 100k sentences (same for every model)
 train_loader = DataLoader(SummarizationDataset(train_samples), batch_size=64, shuffle=True)
 
 # Load validation split and create non-overlapping val/test sets
-full_val_split = load_dataset("gigaword", split="validation")
+full_val_split = load_dataset("SalmanFaroz/gigaword", split="validation")
 val_dataset = full_val_split.select(range(2000))          # first 2,000 for picking the best epoch
 test_dataset = full_val_split.select(range(2000, 12000))  # next 10,000 for testing
 

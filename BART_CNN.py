@@ -117,7 +117,7 @@ else:
         top_idxs = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)[:top_k]
         return [1 if i in top_idxs else 0 for i in range(len(sentences))]
 
-    dataset = load_dataset("cnn_dailymail", "3.0.0", split="train")
+    dataset = load_dataset("abisee/cnn_dailymail", "3.0.0", split="train")
     processed_samples = []
     max_articles = NUM_ARTICLES
 
@@ -155,8 +155,8 @@ train_samples = samples  # all 100k sentences (same for every model)
 
 train_loader = DataLoader(SummarizationDataset(train_samples), batch_size=64, shuffle=True)
 
-val_dataset = load_dataset("cnn_dailymail", "3.0.0", split="validation[:2000]")
-test_dataset = load_dataset("cnn_dailymail", "3.0.0", split="test[:10000]")
+val_dataset = load_dataset("abisee/cnn_dailymail", "3.0.0", split="validation[:2000]")
+test_dataset = load_dataset("abisee/cnn_dailymail", "3.0.0", split="test[:10000]")
 
 # Model Initialization
 

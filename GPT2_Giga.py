@@ -57,7 +57,7 @@ cache_dir = None                                                     # None = Hu
 sample_ckpt_path = os.path.join(OUTPUT_DIR, "gpt2_giga_preprocess_progress.pt") # partial progress while preprocessing
 save_path_100k = os.path.join(OUTPUT_DIR, "gpt2_giga_preprocessed.pt") # all labelled sentences
 save_dir = OUTPUT_DIR                                                # checkpoints are saved here
-TEXT_KEY = "document"     # dataset column with the article text
+TEXT_KEY = "article"      # dataset column with the article text
 SUMMARY_KEY = "summary"   # dataset column with the reference summary
 
 
@@ -105,7 +105,7 @@ class ExtractiveDataset(Dataset):
         }
 
 # Load GIGAWORD dataset
-raw_dataset = load_dataset("gigaword")
+raw_dataset = load_dataset("SalmanFaroz/gigaword")
 train_articles = raw_dataset["train"]
 full_val_split = raw_dataset["validation"]
 val_data = full_val_split.select(range(2000))
@@ -119,7 +119,7 @@ else:
     samples = []
     print(" Preprocessing 100k training samples with checkpointing...")
     for i in range(min(NUM_ARTICLES, len(train_articles))):
-        article = train_articles[i]['document']
+        article = train_articles[i][TEXT_KEY]
         summary = train_articles[i]['summary']
         sentences = split_into_sentences(article)
         if not sentences:

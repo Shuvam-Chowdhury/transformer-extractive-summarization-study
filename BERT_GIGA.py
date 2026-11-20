@@ -55,7 +55,7 @@ torch.cuda.manual_seed_all(SEED)  # the same on every GPU
 cache_dir = None                                                     # None = Hugging Face's default download folder
 save_path_100k = os.path.join(OUTPUT_DIR, "bert_giga_preprocessed.pt") # all labelled sentences
 save_dir = OUTPUT_DIR                                                # checkpoints are saved here
-TEXT_KEY = "document"     # dataset column with the article text
+TEXT_KEY = "article"      # dataset column with the article text
 SUMMARY_KEY = "summary"   # dataset column with the reference summary
 
 
@@ -122,7 +122,7 @@ if os.path.exists(save_path_100k):
     print(f"Found preprocessed samples at {save_path_100k}")
 else:
     print(" Starting preprocessing of 100,000 GIGAWORD examples...")
-    dataset = load_dataset("gigaword", split="train")  # Will now load offline ?
+    dataset = load_dataset("SalmanFaroz/gigaword", split="train")
 
 
     processed_samples = []
@@ -131,7 +131,7 @@ else:
     for idx, example in enumerate(tqdm(dataset, total=max_articles, desc="Preprocessing")):
         if idx >= max_articles:
             break
-        article = example["document"]
+        article = example[TEXT_KEY]
         summary = example["summary"]
         sentences = split_into_sentences(article)
         if not sentences:
@@ -165,7 +165,7 @@ train_samples = samples  # all 100k sentences (same for every model)
 train_loader = DataLoader(SummarizationDataset(train_samples), batch_size=64, shuffle=True)
 
 # Load validation split and create non-overlapping val/test sets
-full_val_split = load_dataset("gigaword", split="validation")
+full_val_split = load_dataset("SalmanFaroz/gigaword", split="validation")
 val_dataset = full_val_split.select(range(2000))          # first 2,000 for picking the best epoch
 test_dataset = full_val_split.select(range(2000, 12000))  # next 10,000 for testing
 
