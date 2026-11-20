@@ -108,6 +108,7 @@ class SummarizationDataset(torch.utils.data.Dataset):
 
 if os.path.exists(save_path_100k):
     print(f"Found preprocessed samples at {save_path_100k}")
+    samples = torch.load(save_path_100k, map_location="cpu")   # load the saved sentences once
 else:
     print("Preprocessing not found. Starting preprocessing...")
 
@@ -145,9 +146,10 @@ else:
     os.makedirs(os.path.dirname(save_path_100k), exist_ok=True)
     torch.save(processed_samples, save_path_100k)
     print(f" Saved {len(processed_samples)} samples to {save_path_100k}")
+    samples = processed_samples   # reuse the list already in memory instead of loading a second copy
+    del processed_samples
 
 # Train/Val Split
-samples = torch.load(save_path_100k, map_location="cpu")
 random.shuffle(samples)
 samples = samples[:100000]
 

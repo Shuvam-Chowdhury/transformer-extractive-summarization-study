@@ -117,6 +117,7 @@ def label_sentences(sentences, reference, top_k=3):
 
 if os.path.exists(samples_path):
     print(f"Found preprocessed samples at {samples_path}")
+    samples = torch.load(samples_path, map_location="cpu")   # load the saved sentences once
 else:
     print("Preprocessing not found. Starting preprocessing...")
     dataset = load_dataset("abisee/cnn_dailymail", "3.0.0", split="train")
@@ -146,9 +147,10 @@ else:
 
     torch.save(processed_samples, samples_path)
     print(f" Saved {len(processed_samples)} samples to {samples_path}")
+    samples = processed_samples   # reuse the list already in memory instead of loading a second copy
+    del processed_samples
 
 # === Training data: shuffle and keep 100k sentences ===
-samples = torch.load(samples_path, map_location="cpu")
 random.shuffle(samples)
 samples = samples[:100000]
 
